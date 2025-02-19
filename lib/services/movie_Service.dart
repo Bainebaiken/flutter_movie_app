@@ -1,27 +1,26 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:movie_app/models/genre.dart';
-import 'package:movie_app/movie.dart';
-
-// import 'package:flutter/foundation.dart';
+import '../models/genre.dart';
+import '../models/movie.dart';
 
 // Replace with your TMDb API key
 const String apiKey = 'f11a4ef31954020803bde4c622fb7ed0';
 const String baseUrl = 'https://api.themoviedb.org/3';
 
-// The MovieService class handles fetching data
 class MovieService {
   // Fetch popular movies
   Future<List<Movie>> fetchPopularMovies() async {
-    final url = Uri.parse('$baseUrl/movie/popular?api_key=$apiKey');
+    final url = Uri.parse('$baseUrl/movie/popular?api_key=$apiKey&language=en-US');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        List<Movie> popularMovies = (data['results'] as List)
+        final jsonResults = data['results'];
+        if (jsonResults == null) throw Exception('Invalid API response');
+
+        return (jsonResults as List)
             .map((movieJson) => Movie.fromJson(movieJson))
             .toList();
-        return popularMovies;
       } else {
         throw Exception('Failed to load popular movies');
       }
@@ -30,15 +29,14 @@ class MovieService {
     }
   }
 
-  // Fetch latest movies
-  Future<List<Movie>> fetchLatestMovies() async {
-    final url = Uri.parse('$baseUrl/movie/latest?api_key=$apiKey');
+  // Fetch latest movie (single movie)
+  Future<Movie?> fetchLatestMovie() async {
+    final url = Uri.parse('$baseUrl/movie/latest?api_key=$apiKey&language=en-US');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        Movie latestMovie = Movie.fromJson(data);
-        return [latestMovie]; // Return as a list for uniformity
+        return Movie.fromJson(data);
       } else {
         throw Exception('Failed to load latest movie');
       }
@@ -47,17 +45,40 @@ class MovieService {
     }
   }
 
-  // Fetch genres
-  Future<List<Genre>> fetchGenres() async {
-    final url = Uri.parse('$baseUrl/genre/movie/list?api_key=$apiKey');
+  // Fetch now playing movies (alternative to latest)
+  Future<List<Movie>> fetchNowPlayingMovies() async {
+    final url = Uri.parse('$baseUrl/movie/now_playing?api_key=$apiKey&language=en-US');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        List<Genre> genres = (data['genres'] as List)
+        final jsonResults = data['results'];
+        if (jsonResults == null) throw Exception('Invalid API response');
+
+        return (jsonResults as List)
+            .map((movieJson) => Movie.fromJson(movieJson))
+            .toList();
+      } else {
+        throw Exception('Failed to load now playing movies');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Fetch movie genres
+  Future<List<Genre>> fetchGenres() async {
+    final url = Uri.parse('$baseUrl/genre/movie/list?api_key=$apiKey&language=en-US');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final jsonGenres = data['genres'];
+        if (jsonGenres == null) throw Exception('Invalid API response');
+
+        return (jsonGenres as List)
             .map((genreJson) => Genre.fromJson(genreJson))
             .toList();
-        return genres;
       } else {
         throw Exception('Failed to load genres');
       }
@@ -66,9 +87,10 @@ class MovieService {
     }
   }
 
-  // Fetch movie details by ID (for actors, reviews, etc.)
+  // Fetch movie details (with credits & reviews)
   Future<Movie> fetchMovieDetails(int movieId) async {
-    final url = Uri.parse('$baseUrl/movie/$movieId?api_key=$apiKey');
+    final url = Uri.parse(
+        '$baseUrl/movie/$movieId?api_key=$apiKey&language=en-US&append_to_response=credits,reviews');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
